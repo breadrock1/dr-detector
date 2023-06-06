@@ -20,15 +20,22 @@ class DrDetector:
     def __init__(self,
                  capture: VideoCapture,
                  frame_size: int = 20,
+                 min_thresh: int = 0,
+                 max_thresh: int = 255,
+                 blur_ksize: int = 11,
                  contour_min_size: int = 100,
                  is_video_file: bool = False):
 
         self.video_capture = capture
+        self.maxval = max_thresh
+        self.ksize = (blur_ksize, blur_ksize)
+        self.threshold = min_thresh
         self.frames_size = frame_size
         self.is_video_file = is_video_file
         self.contour_min_size = contour_min_size
 
         self.background_frame = None
+        self.threshold_type = THRESH_BINARY + THRESH_OTSU
         self.bg_frames_set = QueueList(self.frames_size)
 
     @classmethod
@@ -66,14 +73,20 @@ class DrDetector:
         return cvtColor(frame_median, COLOR_RGB2GRAY)
 
     def _check_moving_objects(self, frame: VideoCapture):
-        gray_frame_sample = cvtColor(src=frame, code=COLOR_RGB2GRAY)
-        bg_removed_frame = absdiff(src1=gray_frame_sample, src2=self.background_frame)
-        frame_blur = GaussianBlur(src=bg_removed_frame, ksize=(11, 11), sigmaX=0)
-        ret, thresh_frame = threshold(src=frame_blur, thresh=0, maxval=255, type=THRESH_BINARY + THRESH_OTSU)
-        contours, _ = findContours(image=thresh_frame.copy(), mode=RETR_EXTERNAL, method=CHAIN_APPROX_SIMPLE)
+        grayscale_frame = cvtColor(src=frame, code=COLOR_RGB2GRAY)
+        background = absdiff(src1=grayscale_frame, src2=self.background_frame)
+        blured_frame = GaussianBlur(src=background, ksize=self.ksize, sigmaX=0)
+        _, thresh_frame = threshold(src=blured_frame,
+                                    maxval=self.maxval,
+                                    thresh=self.threshold,
+                                    type=self.threshold_type)
+
+        self._detect_frame_objects(frame, thresh_frame.copy())
+        imshow('Frame', frame)
+
+    def _detect_frame_objects(self, frame: VideoCapture, thresh_frame: VideoCapture):
+        contours, _ = findContours(image=thresh_frame, mode=RETR_EXTERNAL, method=CHAIN_APPROX_SIMPLE)
         for contour in contours:
             if contourArea(contour) >= self.contour_min_size:
                 x, y, w, h = boundingRect(contour)
                 rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-
-        imshow('Frame', frame)
