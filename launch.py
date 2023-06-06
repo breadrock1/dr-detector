@@ -1,8 +1,4 @@
 from argparse import ArgumentParser
-from sys import argv
-
-from cv2 import VideoCapture
-
 from src.dr_detector import DrDetector
 
 
@@ -23,8 +19,11 @@ def parse_arguments():
 
 
 if __name__ == '__main__':
-    arguments = parse_arguments()
-    video_source = 0 if arguments.mode == 'web' else arguments.file_path
-    dr_detector = DrDetector(VideoCapture(video_source), is_video_file=True)
-    dr_detector.run_processing()
-
+    try:
+        arguments = parse_arguments()
+        video_source = 0 if arguments.mode == 'web' else arguments.file_path
+        video_capture = DrDetector.build_video_capture(video_source)
+        dr_detector = DrDetector(video_capture, is_video_file=True)
+        dr_detector.run_processing()
+    except KeyboardInterrupt as err:
+        exit(0)

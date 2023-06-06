@@ -31,6 +31,10 @@ class QueueList(list):
     def to_list(self) -> List[_T]:
         return self._list_object
 
+    @property
+    def size(self) -> int:
+        return self._list_object.__len__()
+
     def __len__(self):
         """Returns the length of queue list."""
 
